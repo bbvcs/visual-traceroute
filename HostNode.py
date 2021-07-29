@@ -6,6 +6,7 @@ class HostNode:
 		self.__region = region
 		self.__coords = coords
 		self.__org = org
+		#self.__rtt = rtt # add round trip time from parsed traceroute
 	
 	@property
 	def city(self):

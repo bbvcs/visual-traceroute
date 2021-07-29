@@ -6,6 +6,7 @@ name = "pypi"
 [packages]
 pycurl = "*"
 certifi = "*"
+pyside6 = "*"
 
 [dev-packages]
 

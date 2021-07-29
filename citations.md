@@ -13,6 +13,9 @@ Sources used in Project
 - https://linuxhandbook.com/execute-shell-command-python/
 - https://www.poftut.com/python-try-catch-exceptions-tutorial/
 - https://stackoverflow.com/questions/73663/how-to-terminate-a-script
+- https://www.vipinajayakumar.com/parsing-text-with-python/
+- https://stackoverflow.com/questions/43365328/split-text-file-into-lines-python
+- https://stackoverflow.com/questions/6903557/splitting-on-first-occurrence
 
 
 

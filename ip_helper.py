@@ -29,7 +29,17 @@ def get_ipinfo_node(ip_addr):
 	ipinfo_bytes = buffer.getvalue()
 	ipinfo_jsonstr = ipinfo_bytes.decode('iso-8859-1')
 	ipinfo_dict = json.loads(ipinfo_jsonstr) # json.loads returns python dict
-	
+
+	return_dict = {} # ideally a clone of ipinfo_dict, but accounts for missing info (e.g no org) by filling in with 'NONE'
+	keys = ["ip", "hostname", "city", "region", "loc", "org"]
+	for key in keys:
+		try:
+			return_dict[key] = ipinfo_dict[key]
+		except KeyError:
+			return_dict[key] = "NONE"
+
+	ipinfo_dict = return_dict #REMOVE
+
 	return HostNode(ipinfo_dict["ip"],
 					ipinfo_dict["hostname"],
 					ipinfo_dict["city"],
@@ -75,23 +85,26 @@ if __name__ == "__main__":
 	
 	
 	print("running traceroute for {}".format(hostname))
-	result = os.popen("traceroute {}".format(hostname))#.read() #.read() excluded as we want it in file format, not string
+	result = os.popen("traceroute -n -q1 {}".format(hostname))#.read() #.read() excluded as we want it in file format, not string
 	result_lines = result.readlines()
 	for line in result_lines[1:]: 
 		# skip first line (using [1:], as is not of index, key format 
 		# e.g: ("traceroute to www.google.com (172.217.169.68), 30 hops max, 60 byte packets")
 
-		
-		# split between index and traceroute info for that line
-		# e.g for '3 host.net 123.123.123.13 19 ms'
-			# [0] would be '3'
-			# [1] would be 'host.net 123.123.123.13 19 ms'
-		content = line.split("  ", maxsplit = 1)[1]
-		
-		#if (content == "* * *\n"):
-			# then it's a firewalled node
-			
-		print(content)
+
+		line = line.split("  ", maxsplit = 1)
+		i = line[0]
+		content = line[1]
+		if (content == "*\n"):
+			print("device didn't respond, or timed out.\n")
+		else:
+			content = content.split("  ", maxsplit=1)
+			ip = content[0]
+			rtt = content[1].split("  ", maxsplit=1)[0] # get the x from x ms # RTT DOESNT WORK
+			rtt = rtt.split("\n")[0] # remove \n
+			node = get_ipinfo_node(ip)
+			print("{}, {} ({} : rtt={})\n".format(node.city, node.region, ip, rtt))
+
 	
 	
 	

@@ -6,7 +6,12 @@ name = "pypi"
 [packages]
 pycurl = "*"
 certifi = "*"
-pyside6 = "*"
+PySide6 = "*"
+matplotlib = "*"
+shapely = "*"
+pyshp = "*"
+cartopy = "*"
+scipy = "*"
 
 [dev-packages]
 

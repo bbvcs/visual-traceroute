@@ -12,6 +12,7 @@ shapely = "*"
 pyshp = "*"
 cartopy = "*"
 scipy = "*"
+pyqt5 = "*"
 
 [dev-packages]
 

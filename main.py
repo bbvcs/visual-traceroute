@@ -14,11 +14,15 @@ from node_utils import MissingInfoTypes
 from ip_utils import get_traceroute_node_list
 
 
+def coords_provided(latitude, longitude):
+    return (longitude != MissingInfoTypes.NOT_DISCLOSED and longitude != MissingInfoTypes.NOT_PROVIDED) \
+                and (latitude != MissingInfoTypes.NOT_DISCLOSED and latitude != MissingInfoTypes.NOT_PROVIDED)
+
 class Window(QDialog):
     def __init__(self, parent=None):
         super(Window, self).__init__(parent)
 
-        # self.showFullScreen()
+        #self.showFullScreen()
 
         # a figure instance to plot on
         self.figure = plt.figure()
@@ -27,22 +31,22 @@ class Window(QDialog):
         # it takes the `figure` instance as a parameter to __init__
         self.canvas = FigureCanvas(self.figure)
 
+
         # this is the Navigation widget
         # it takes the Canvas widget and a parent
         self.toolbar = NavigationToolbar(self.canvas, self)
 
         # draw map
-        ax = plt.axes(projection=ccrs.PlateCarree())
-        ax.coastlines()
-        ax.stock_img()
+        self.ax = plt.axes(projection=ccrs.PlateCarree())
+        self.ax.coastlines()
+        self.ax.stock_img()
         self.canvas.draw()
 
+
         # coords enter
-        self.lat_text = QLabel("Latitude")
-        self.lon_text = QLabel("Longitude")
-        self.longitude = QLineEdit()
-        self.latitude = QLineEdit()
-        self.button = QPushButton('plot coords')
+        self.addr_text = QLabel("Enter a web address ...")
+        self.addr_entry = QLineEdit()
+        self.button = QPushButton('Perform Traceroute')
         self.button.clicked.connect(self.plot)
 
         # set the layout
@@ -50,45 +54,57 @@ class Window(QDialog):
         layout.addWidget(self.toolbar)
         layout.addWidget(self.canvas)
 
-        layout.addWidget(self.lon_text)
-        layout.addWidget(self.longitude)
-
-        layout.addWidget(self.lat_text)
-        layout.addWidget(self.latitude)
+        layout.addWidget(self.addr_text)
+        layout.addWidget(self.addr_entry)
 
         layout.addWidget(self.button)
         self.setLayout(layout)
 
+
     def plot(self):
+
+        plt.cla()
+        self.ax = plt.axes(projection=ccrs.PlateCarree())
+        self.ax.coastlines()
+        self.ax.stock_img()
+
         """
         try:
             plt.plot(int(self.longitude.text()), int(self.latitude.text()), color='red', marker = 'o', transform = ccrs.PlateCarree())
         except:
             print("invalid coords")"""
 
-        node_list = get_traceroute_node_list("www.google.com")
+        node_list = get_traceroute_node_list(self.addr_entry.text())
 
-        i = 1
+        i = last_valid = 0
         for node in node_list:
             print(repr(node))
 
-            if ((node.get_longitude() != MissingInfoTypes.NOT_DISCLOSED and
-                 node.get_longitude() != MissingInfoTypes.NOT_PROVIDED)
-                    and
-                    (node.get_latitude() != MissingInfoTypes.NOT_DISCLOSED and
-                     node.get_latitude() != MissingInfoTypes.NOT_PROVIDED)):
+            if coords_provided(node.get_latitude(), node.get_longitude()):
 
-                latitude = round(float(node.get_longitude()), 2)
-                longitude =round(float(node.get_latitude()), 2)
-
-
+                longitude  = round(float(node.get_longitude()), 2) # round to 2dp required by plt plot/text methods
+                latitude = round(float(node.get_latitude()),  2)
                 tag = "({}): {}".format(i, node.city)
 
-                plt.plot(latitude, longitude, color='red', marker='o',
-                         transform=ccrs.PlateCarree())
-                plt.text(latitude, longitude, tag, horizontalalignment = 'right', transform = ccrs.Geodetic())
-            self.canvas.draw()
+                plt.plot(longitude, latitude, color='red', marker='o', transform=ccrs.PlateCarree())
+
+                if i > 1: # error lies in here i reckon
+
+                    last_valid_node = node_list[last_valid]
+                    print("i={}, last_valid={}, last_valid_node={}".format(i, last_valid, last_valid_node.ip))
+                    prev_latitude  = round(float(last_valid_node.get_latitude()),  2)
+                    prev_longitude = round(float(last_valid_node.get_longitude()), 2)
+                    plt.plot([longitude, prev_longitude], [latitude, prev_latitude], color='blue', linewidth=2, transform=ccrs.PlateCarree())
+
+                plt.text(longitude, latitude, tag, horizontalalignment = 'right', transform = ccrs.Geodetic())
+                self.canvas.draw()
+                last_valid = i
+
             i = i + 1
+
+
+
+        #for node in node_list:
 
 
 if __name__ == '__main__':

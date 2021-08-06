@@ -6,7 +6,7 @@ import os				# for running traceroute
 import sys				# for exit on exception
 
 from io import BytesIO 			# for buffer for pycurl to write into
-from HostNode import HostNode 	# class representing a host with info from ipinfo
+from node_utils import HostNode, MissingInfoTypes  # class representing a host with info from ipinfo
 
 def format_hostname(hostname): # UNIMPLEMENTED
 	"""Format the hostname to only the host,
@@ -14,20 +14,23 @@ def format_hostname(hostname): # UNIMPLEMENTED
 	# also remove https?
 	return hostname
 
-def get_ipinfo_node(ip_addr, rtt):
-	"""Takes an IPv4 address and uses ipinfo.io to get information in
-	json format, and convert to python dictionary"""
-
+def curl(url):
 	buffer = BytesIO()
 	c = pycurl.Curl()
-	c.setopt(c.URL, "https://ipinfo.io/"+ip_addr+"/json")
+	c.setopt(c.URL, url)
 	c.setopt(c.WRITEDATA, buffer)
 	c.setopt(c.CAINFO, certifi.where())
 	c.perform()
 	c.close
 
-	ipinfo_bytes = buffer.getvalue()
-	ipinfo_jsonstr = ipinfo_bytes.decode('iso-8859-1')
+	bytes = buffer.getvalue()
+	return bytes.decode('iso-8859-1')
+
+def get_ipinfo_node(ip_addr, rtt):
+	"""Takes an IPv4 address and uses ipinfo.io to get information in
+	json format, and convert to python dictionary"""
+
+	ipinfo_jsonstr = curl("https://ipinfo.io/"+ip_addr+"/json")
 	ipinfo_dict = json.loads(ipinfo_jsonstr) # json.loads returns python dict
 
 	return_dict = {} # ideally a clone of ipinfo_dict, but accounts for missing info (e.g no org) by filling in with 'NONE'
@@ -36,7 +39,7 @@ def get_ipinfo_node(ip_addr, rtt):
 		try:
 			return_dict[key] = ipinfo_dict[key]
 		except KeyError:
-			return_dict[key] = "NOT_PROVIDED"  # node is not private, but doesn't reveal all information about itself
+			return_dict[key] = MissingInfoTypes.NOT_PROVIDED
 
 	ipinfo_dict = return_dict #REMOVE
 
@@ -50,7 +53,7 @@ def get_ipinfo_node(ip_addr, rtt):
 					rtt)
 
 
-def get_info_for_traceroute_nodes(hostname):
+def get_traceroute_node_list(hostname):
 	"""Runs traceroute for a hostname, putting every node (or a specified
 	'firewall' value if unreachable) into a list"""
 
@@ -75,12 +78,13 @@ def get_info_for_traceroute_nodes(hostname):
 		i = line[0]
 		content = line[1]
 		if (content == "*\n"):
-			x = 1
 			node_list.append(HostNode(True))
 			#print("device didn't respond, or timed out.")
 		else:
 			content = content.split("  ", maxsplit=1)
 			ip = content[0]
+			if (ip == "192.168.0.1"):
+				ip = curl("ident.me") # get public address of your computer
 			rtt = content[1].split("  ", maxsplit=1)[0]  # get the x from x ms # RTT DOESNT WORK
 			rtt = rtt.split("\n")[0]  # remove \n
 			node_list.append(get_ipinfo_node(ip, rtt))
@@ -107,12 +111,14 @@ if __name__ == "__main__":
 
 	# further modularise?
 
-	hostname = "stackoverflow.com" # gives weird output if use IP here
+	hostname = "www.w3schools.com" # gives weird output if use IP here
 	hostname = format_hostname(hostname) # implement
-	node_list = get_info_for_traceroute_nodes(hostname)
+	node_list = get_traceroute_node_list(hostname)
 
 	for node in node_list:
-		print(repr(node))
+		print("{}, {}".format(node.get_latitude(), node.get_longitude()))
+		#print(repr(node))
+
 	# allow options for ICMP, UDP
 
 

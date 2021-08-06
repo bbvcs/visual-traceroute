@@ -10,13 +10,15 @@ import random
 import cartopy.crs as ccrs
 import matplotlib.pyplot as plt
 
-import ip_helper
+from node_utils import MissingInfoTypes
+from ip_utils import get_traceroute_node_list
+
 
 class Window(QDialog):
     def __init__(self, parent=None):
         super(Window, self).__init__(parent)
 
-        #self.showFullScreen()
+        # self.showFullScreen()
 
         # a figure instance to plot on
         self.figure = plt.figure()
@@ -28,8 +30,6 @@ class Window(QDialog):
         # this is the Navigation widget
         # it takes the Canvas widget and a parent
         self.toolbar = NavigationToolbar(self.canvas, self)
-
-
 
         # draw map
         ax = plt.axes(projection=ccrs.PlateCarree())
@@ -60,13 +60,35 @@ class Window(QDialog):
         self.setLayout(layout)
 
     def plot(self):
-
+        """
         try:
             plt.plot(int(self.longitude.text()), int(self.latitude.text()), color='red', marker = 'o', transform = ccrs.PlateCarree())
         except:
-            print("invalid coords")
-        self.canvas.draw()
+            print("invalid coords")"""
 
+        node_list = get_traceroute_node_list("www.google.com")
+
+        i = 1
+        for node in node_list:
+            print(repr(node))
+
+            if ((node.get_longitude() != MissingInfoTypes.NOT_DISCLOSED and
+                 node.get_longitude() != MissingInfoTypes.NOT_PROVIDED)
+                    and
+                    (node.get_latitude() != MissingInfoTypes.NOT_DISCLOSED and
+                     node.get_latitude() != MissingInfoTypes.NOT_PROVIDED)):
+
+                latitude = round(float(node.get_longitude()), 2)
+                longitude =round(float(node.get_latitude()), 2)
+
+
+                tag = "({}): {}".format(i, node.city)
+
+                plt.plot(latitude, longitude, color='red', marker='o',
+                         transform=ccrs.PlateCarree())
+                plt.text(latitude, longitude, tag, horizontalalignment = 'right', transform = ccrs.Geodetic())
+            self.canvas.draw()
+            i = i + 1
 
 
 if __name__ == '__main__':
@@ -125,4 +147,3 @@ if __name__ == "__main__":
     widget.show()
 
     sys.exit(app.exec()) """
-

@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import random
 
 import cartopy.crs as ccrs
+import cartopy.feature as cfeature
 import matplotlib.pyplot as plt
 
 from node_utils import MissingInfoTypes
@@ -18,11 +19,14 @@ def coords_provided(latitude, longitude):
     return (longitude != MissingInfoTypes.NOT_DISCLOSED and longitude != MissingInfoTypes.NOT_PROVIDED) \
                 and (latitude != MissingInfoTypes.NOT_DISCLOSED and latitude != MissingInfoTypes.NOT_PROVIDED)
 
+
+
 class Window(QDialog):
+
     def __init__(self, parent=None):
         super(Window, self).__init__(parent)
 
-        #self.showFullScreen()
+        # self.showFullScreen()
 
         # a figure instance to plot on
         self.figure = plt.figure()
@@ -31,17 +35,13 @@ class Window(QDialog):
         # it takes the `figure` instance as a parameter to __init__
         self.canvas = FigureCanvas(self.figure)
 
-
         # this is the Navigation widget
         # it takes the Canvas widget and a parent
         self.toolbar = NavigationToolbar(self.canvas, self)
 
         # draw map
-        self.ax = plt.axes(projection=ccrs.PlateCarree())
-        self.ax.coastlines()
-        self.ax.stock_img()
+        self.ax = self.generate_map_axes()
         self.canvas.draw()
-
 
         # coords enter
         self.addr_text = QLabel("Enter a web address ...")
@@ -60,19 +60,39 @@ class Window(QDialog):
         layout.addWidget(self.button)
         self.setLayout(layout)
 
+    def generate_map_axes(self):
+        ax = plt.axes(projection=ccrs.PlateCarree())
+        ax.coastlines()
+        ax.stock_img()
+        ax.add_feature(cfeature.BORDERS.with_scale('50m'))
+        ax.add_feature(cfeature.STATES.with_scale('50m'))
+
+        return ax
 
     def plot(self):
 
+
+
+        """
+        # may be smthn to do with the canvas in toolbar
         plt.cla()
+        plt.clf()
+        #plt.close()
+        self.canvas.draw()
+
+        print("cleared")
+
+        self.figure = plt.figure()
+        self.canvas = FigureCanvas(self.figure)
         self.ax = plt.axes(projection=ccrs.PlateCarree())
         self.ax.coastlines()
         self.ax.stock_img()
+        self.canvas.draw()"""
 
-        """
-        try:
-            plt.plot(int(self.longitude.text()), int(self.latitude.text()), color='red', marker = 'o', transform = ccrs.PlateCarree())
-        except:
-            print("invalid coords")"""
+        self.figure.clear()
+        self.ax.cla()
+        self.ax = self.generate_map_axes()
+        self.canvas.draw()
 
         node_list = get_traceroute_node_list(self.addr_entry.text())
 
@@ -84,7 +104,7 @@ class Window(QDialog):
 
                 longitude  = round(float(node.get_longitude()), 2) # round to 2dp required by plt plot/text methods
                 latitude = round(float(node.get_latitude()),  2)
-                tag = "({}): {}".format(i, node.city)
+                tag = "({}): \n{}".format(i, node.city)
 
                 plt.plot(longitude, latitude, color='red', marker='o', transform=ccrs.PlateCarree())
 
@@ -94,17 +114,16 @@ class Window(QDialog):
                     print("i={}, last_valid={}, last_valid_node={}".format(i, last_valid, last_valid_node.ip))
                     prev_latitude  = round(float(last_valid_node.get_latitude()),  2)
                     prev_longitude = round(float(last_valid_node.get_longitude()), 2)
-                    plt.plot([longitude, prev_longitude], [latitude, prev_latitude], color='blue', linewidth=2, transform=ccrs.PlateCarree())
+                    plt.plot([longitude, prev_longitude], [latitude, prev_latitude], color='blue', linewidth=1, transform=ccrs.PlateCarree())
 
-                plt.text(longitude, latitude, tag, horizontalalignment = 'right', transform = ccrs.Geodetic())
+                plt.text(longitude, latitude, tag, horizontalalignment = 'right', transform = ccrs.PlateCarree())
                 self.canvas.draw()
+
+
                 last_valid = i
 
             i = i + 1
 
-
-
-        #for node in node_list:
 
 
 if __name__ == '__main__':

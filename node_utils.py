@@ -11,6 +11,9 @@ class MissingInfoTypes(Enum):
     NOT_PROVIDED = auto()
 
 
+def val_known(val):
+    return val != MissingInfoTypes.NOT_DISCLOSED and val != MissingInfoTypes.NOT_PROVIDED
+
 class HostNode:
     """Represents a node - with attributes such as ip, coords etc - on the internet that is part of our trace route."""
 
@@ -83,6 +86,9 @@ class HostNode:
             return MissingInfoTypes.NOT_PROVIDED
 
         return self.coords.split(',')[1]
+
+    def coords_provided(self):
+        return val_known(self.get_latitude()) and val_known(self.get_longitude())
 
     def __dict__(self):
         return {'private': self.private, 'ip': self.ip, 'hostname': self.hostname, 'city': self.city,

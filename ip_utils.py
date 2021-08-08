@@ -53,9 +53,10 @@ def get_ipinfo_node(ip_addr, rtt):
 					rtt)
 
 
-def get_traceroute_node_list(hostname):
+def get_traceroute_node_list(hostname, method):
 	"""Runs traceroute for a hostname, putting every node (or a specified
 	'firewall' value if unreachable) into a list"""
+
 
 	node_list = []
 
@@ -67,8 +68,8 @@ def get_traceroute_node_list(hostname):
 
 	# print(get_ipinfo_node(ip_addr).city)
 
-	print("running traceroute for {}".format(hostname))
-	result = os.popen("traceroute -In -q1 {}".format(hostname))# .read() #.read() excluded as we want it in file format, not string
+	print("running traceroute for {} using method {}".format(hostname, method.name))
+	result = os.popen("traceroute -M {} -n -q1 {}".format(method.name, hostname))# .read() #.read() excluded as we want it in file format, not string
 	result_lines = result.readlines()
 	for line in result_lines[1:]:
 		# skip first line (using [1:], as is not of index, key format

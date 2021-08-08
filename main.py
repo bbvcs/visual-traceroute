@@ -1,7 +1,9 @@
 import sys
+from enum import Enum, auto
+
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QDialog, QApplication, QPushButton, QVBoxLayout, QHBoxLayout, QListWidget, QLineEdit, \
-    QLabel, QGridLayout, QWidget, QAbstractItemView, QListWidgetItem
+    QLabel, QGridLayout, QWidget, QAbstractItemView, QListWidgetItem, QCheckBox, QComboBox
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
@@ -16,6 +18,12 @@ import matplotlib.pyplot as plt
 from node_utils import val_known
 from ip_utils import get_traceroute_node_list
 
+class TracerouteMethods(Enum):
+    DEFAULT = 0
+    ICMP = 1
+    UDP = 2
+    TCP = 3
+    DCCP = 4
 
 
 class FlowNodeInfoBox(QListWidgetItem):
@@ -101,14 +109,33 @@ class Window(QWidget):
 
         main_layout.addWidget(self.flow_list, 1, 0)
 
-        entry_layout = QVBoxLayout()
+        entry_layout = QGridLayout()
         #entry_layout.addWidget(self.addr_text)
-        entry_layout.addWidget(self.addr_entry, alignment=Qt.AlignHCenter)
-        entry_layout.addWidget(self.button, alignment=Qt.AlignHCenter)
+        entry_layout.addWidget(self.addr_entry, 0, 1, alignment=Qt.AlignHCenter)
+        entry_layout.addWidget(self.button, 1, 1, alignment=Qt.AlignHCenter)
+
+
+        self.traceroute_options = QComboBox()
+        self.traceroute_options.addItems(["Default/'Traditional' (Not Reccomended)",
+                                          "ICMP (Reccomended)",
+                                          "UDP",
+                                          "TCP (Reccomended, requires superuser privileges)",
+                                          "DCCP (Requires superuser privileges)"])
+        self.traceroute_options.itemText(2)
+        self.traceroute_method = TracerouteMethods(2)
+        self.traceroute_options.currentIndexChanged.connect(self.traceroute_options_change)
+        entry_layout.addWidget(self.traceroute_options, 0, 0)
+        entry_layout.addWidget(QLabel(""), 0, 2)
+
         main_layout.addLayout(entry_layout, 2, 0)
 
 
+
         self.setLayout(main_layout)
+
+    def traceroute_options_change(self, i):
+        self.traceroute_method = TracerouteMethods(i)
+
 
     def generate_map_axes(self):
         ax = plt.axes(projection=ccrs.PlateCarree())
@@ -128,7 +155,7 @@ class Window(QWidget):
         self.ax = self.generate_map_axes()
         self.canvas.draw()
 
-        node_list = get_traceroute_node_list(self.addr_entry.text())
+        node_list = get_traceroute_node_list(self.addr_entry.text(), self.traceroute_method)
 
         visited_coords = []
         marker_color = 'red'

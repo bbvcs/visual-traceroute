@@ -28,7 +28,7 @@ class FlowNodeInfoBox(QListWidgetItem):
         #self.private    = "Private" if node.private else "Public"
         self.ip         = node.ip if val_known(node.ip) else "(IP Not Provided)"
         self.org        = node.org if val_known(node.org) else "(Org Not Provided)"
-        self.hostname   = node.hostname if val_known(node.hostname) else ""
+        self.hostname   = node.hostname if val_known(node.hostname) else "Hostname Not Provided"
         self.location   = "{} {}".format(
             node.city   + "," if val_known(node.city) else "(City Not Provided)",
             node.region + "" if val_known(node.region) else "(Region Not Provided)")
@@ -130,13 +130,14 @@ class Window(QWidget):
 
         node_list = get_traceroute_node_list(self.addr_entry.text())
 
-        cities = {}
+        visited_coords = []
         marker_color = 'red'
-        i = last_valid = 0
+        i = city_dup = last_valid = 0
         for node in node_list:
             print(repr(node))
 
             if node.coords_provided():
+
 
 
                 longitude  = round(float(node.get_longitude()), 2) # round to 2dp required by plt plot/text methods
@@ -148,7 +149,7 @@ class Window(QWidget):
                 if i == len(node_list) - 1:
                     marker_color = 'green' # electric green
 
-                plt.plot(longitude, latitude, marker_color, marker='o', markersize=10, transform=ccrs.PlateCarree())
+                plt.plot(longitude, latitude, marker_color, marker='o', markersize=12, transform=ccrs.PlateCarree())
 
 
                 if i > 1 and node_list[last_valid].coords_provided(): # error where last valid node is 0 and coords not disclosed, think fixed now
@@ -159,7 +160,21 @@ class Window(QWidget):
                     prev_longitude = round(float(last_valid_node.get_longitude()), 2)
                     plt.plot([longitude, prev_longitude], [latitude, prev_latitude], color='blue', linewidth=0.8, transform=ccrs.Geodetic())
 
-                plt.text(longitude, latitude-0.06, i, color='white', horizontalalignment='center', verticalalignment='center', transform=ccrs.PlateCarree())
+                coords_used = "{},{}".format(longitude, latitude)
+                tmp = ""
+                if coords_used in visited_coords:
+                    tmp = ""
+                    #build amount of spaces to prepend
+                    for x in range(visited_coords.count(coords_used)):
+                        tmp += "\n\n"
+                    tmp += "and "
+
+
+                visited_coords.append(coords_used)
+
+                plt.text(longitude, latitude, tmp+str(i), color='white', horizontalalignment='center',
+                         verticalalignment='center', transform=ccrs.PlateCarree())
+
                 self.canvas.draw()
 
                 last_valid = i

@@ -5,5 +5,5 @@ Python program extending traceroute to display visually the locations of servers
 
 TODO:
 - enable -T sudo
-- stop overlapping node numbers
 - error handling
+- write tests

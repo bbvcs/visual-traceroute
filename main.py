@@ -108,7 +108,7 @@ class Window(QWidget):
         main_layout.addLayout(map_layout, 0, 0)
 
         self.flow_list = QListWidget()  # QHBoxLayout()
-        self.flow_list.setMaximumHeight(170)
+        self.flow_list.setMaximumHeight(int(round(self.height() * 0.4)))
         self.flow_list.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
 
         main_layout.addWidget(self.flow_list, 1, 0)
@@ -134,9 +134,31 @@ class Window(QWidget):
 
         main_layout.addLayout(entry_layout, 2, 0)
 
+        self.sudo_pass_hashed = None # not actually hashed yet !!
+
+
+
         self.setLayout(main_layout)
 
+    def set_sudo_pass(self):
+        self.sudo_pass_hashed = self.pass_entry.text()
+        #self.pass_entry.setText("")
+        self.dlg.close()
+
+
+
+    def get_sudo_pass(self):
+        self.dlg = QDialog(self)
+        self.dlg.setWindowTitle("Enter Superuser Password")
+        self.dlg.setWindowModality(Qt.ApplicationModal)
+
+        self.pass_entry = QLineEdit(self.dlg)
+        self.pass_entry.setEchoMode(QLineEdit.Password)
+        self.pass_entry.editingFinished.connect(self.set_sudo_pass)
+        self.dlg.exec_()
+
     def traceroute_options_change(self, i):
+
         self.traceroute_method = TracerouteMethods(i)
 
     def generate_map_axes(self):
@@ -150,13 +172,18 @@ class Window(QWidget):
 
     def plot(self):
 
+        if self.traceroute_method.name == "TCP" or self.traceroute_method.name == "DCCP":
+            self.get_sudo_pass()
+
         self.flow_list.clear()
         self.figure.clear()
         self.ax.cla()
         self.ax = self.generate_map_axes()
         self.canvas.draw()
 
-        node_list = get_traceroute_node_list(self.addr_entry.text(), self.traceroute_method)
+        print(self.sudo_pass_hashed)
+        node_list = get_traceroute_node_list(self.addr_entry.text(), self.traceroute_method, self.sudo_pass_hashed)
+        self.sudo_pass_hashed = None
 
         self.flow_list.addItem("START")
 

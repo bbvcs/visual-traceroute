@@ -53,7 +53,7 @@ def get_ipinfo_node(ip_addr, rtt):
 					rtt)
 
 
-def get_traceroute_node_list(hostname, method):
+def get_traceroute_node_list(hostname, method, sudo_pass=None):
 	"""Runs traceroute for a hostname, putting every node (or a specified
 	'firewall' value if unreachable) into a list"""
 
@@ -69,7 +69,13 @@ def get_traceroute_node_list(hostname, method):
 	# print(get_ipinfo_node(ip_addr).city)
 
 	print("running traceroute for {} using method {}".format(hostname, method.name))
-	result = os.popen("traceroute -M {} -n -q1 {}".format(method.name, hostname))# .read() #.read() excluded as we want it in file format, not string
+	if method.name == "TCP" or method.name == "DCCP": # requires sudo
+		if sudo_pass is None:
+			print("error")
+		else:
+			result = os.popen("echo {} | sudo -S traceroute -M {} -n -q1 {}".format(sudo_pass, method.name, hostname))
+	else:
+		result = os.popen("traceroute -M {} -n -q1 {}".format(method.name, hostname))# .read() #.read() excluded as we want it in file format, not string
 	result_lines = result.readlines()
 	for line in result_lines[1:]:
 		# skip first line (using [1:], as is not of index, key format

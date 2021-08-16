@@ -4,6 +4,7 @@ Python program extending traceroute to display visually the locations of servers
 
 
 TODO:
-- enable -T sudo
+- enable -T sudo securely
 - error handling
 - write tests
+- write code to account for if dont have curl etc OS level commands installed

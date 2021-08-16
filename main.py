@@ -19,6 +19,7 @@ import matplotlib.pyplot as plt
 from node_utils import val_known
 from ip_utils import get_traceroute_node_list
 
+import qdarkstyle
 
 class TracerouteMethods(Enum):
     DEFAULT = 0
@@ -28,27 +29,27 @@ class TracerouteMethods(Enum):
     DCCP = 4
 
 
-class FlowNodeInfoBox(QListWidgetItem):
+class FlowNodeInfoEntry(QListWidgetItem):
+    """ Textual representation of a hop node, to be displayed in a QListWidget"""
 
     def __init__(self, node, pos):
         super().__init__()
         self.layout = QVBoxLayout()
 
         # Should be Impossible to get no coords, IP, rtt
-        # self.private    = "Private" if node.private else "Public"
         self.ip = node.ip if val_known(node.ip) else "(IP Not Provided)"
         self.org = node.org if val_known(node.org) else "(Org Not Provided)"
         self.hostname = node.hostname if val_known(node.hostname) else "Hostname Not Provided"
+
         self.location = "{} {}".format(
             node.city + "," if val_known(node.city) else "(City Not Provided)",
             node.region + "" if val_known(node.region) else "(Region Not Provided)")
+
         self.coords = "{},  {}".format(node.get_latitude(), node.get_longitude()) if val_known(
             node.coords) else "(Coordinates Not Provided)"
+
         self.rtt = node.rtt + " round trip time from last node" if val_known(
             node.rtt) else "(Round Trip Time Not Provided)"  # add like "from last node"
-
-        # self.setMaximumHeight(150)
-        # self.setLayout(self.layout)
 
         text = "({}) : {}    {}    {}\n   {}     ({})\n   {}\n".format(
             pos, self.org, self.location, self.coords, self.ip, self.hostname, self.rtt)
@@ -60,19 +61,15 @@ class FlowNodeInfoBox(QListWidgetItem):
 
         self.setText(text)
 
-
 class Window(QWidget):
     class CustomNavigationToolbar(NavigationToolbar2QT):
         """Subclass of standard toolbar, with some buttons removed."""
         toolitems = [t for t in NavigationToolbar.toolitems if
                      t[0] in ('Home', 'Pan', 'Zoom', 'Save')]
 
-    def __init__(self, parent=None):
-        # super(Window, self).__init__(parent)
+    def __init__(self):
         super().__init__()
         self.setWindowTitle("Visual Traceroute")
-
-        # self.showFullScreen()
 
         # a figure instance to plot on
         self.figure = plt.figure()
@@ -86,37 +83,33 @@ class Window(QWidget):
         self.toolbar = self.CustomNavigationToolbar(self.canvas, self)
 
         # draw map
-        self.ax = self.generate_map_axes()
+        self.ax = self.reset_map()
         self.canvas.draw()
-
-        # coords enter
-        # self.addr_text = QLabel("Enter a web address ...")
-        self.addr_entry = QLineEdit("www.google.com")
-        self.addr_entry.setAlignment(Qt.AlignCenter)
-        self.addr_entry.setMaximumWidth(200)
-        # self.addr_text.setBuddy(self.addr_entry)
-        self.button = QPushButton('Perform Traceroute')
-        self.button.setMaximumWidth(200)
-        self.button.clicked.connect(self.plot)
 
         main_layout = QGridLayout()
 
-        # set the layout
+        # LAYOUT: Map
         map_layout = QVBoxLayout()
         map_layout.addWidget(self.toolbar)
         map_layout.addWidget(self.canvas)
         main_layout.addLayout(map_layout, 0, 0)
 
-        self.flow_list = QListWidget()  # QHBoxLayout()
-        self.flow_list.setMaximumHeight(int(round(self.height() * 0.4)))
-        self.flow_list.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
+        # LAYOUT: Node List Widget (Texual Representation)
+        self.node_list_widget = QListWidget()
+        self.node_list_widget.setMaximumHeight(int(round(self.height() * 0.4)))
+        self.node_list_widget.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
+        main_layout.addWidget(self.node_list_widget, 1, 0)
 
-        main_layout.addWidget(self.flow_list, 1, 0)
-
+        # LAYOUT: User Entry (IP, traceroute method selection)
         entry_layout = QGridLayout()
-        # entry_layout.addWidget(self.addr_text)
-        entry_layout.addWidget(self.addr_entry, 0, 1, alignment=Qt.AlignHCenter)
-        entry_layout.addWidget(self.button, 1, 1, alignment=Qt.AlignHCenter)
+
+        self.addr_entry = QLineEdit("www.google.com")
+        self.addr_entry.setAlignment(Qt.AlignCenter)
+        self.addr_entry.setMaximumWidth(200)
+
+        self.button = QPushButton('Perform Traceroute')
+        self.button.setMaximumWidth(200)
+        self.button.clicked.connect(self.perform_traceroute)
 
         self.traceroute_options = QComboBox()
         self.traceroute_options.addItems(["Default/'Traditional' (Not Reccomended)",
@@ -125,67 +118,69 @@ class Window(QWidget):
                                           "TCP (Reccomended, requires superuser privileges)",
                                           "DCCP (Requires superuser privileges)"])
         self.traceroute_options.setCurrentIndex(1)
-        self.traceroute_method = TracerouteMethods(1)
+
         self.traceroute_options.currentIndexChanged.connect(self.traceroute_options_change)
+
+        entry_layout.addWidget(self.addr_entry, 0, 1, alignment=Qt.AlignHCenter)
+        entry_layout.addWidget(self.button, 1, 1, alignment=Qt.AlignHCenter)
         entry_layout.addWidget(self.traceroute_options, 0, 0)
         entry_layout.addWidget(QLabel("Use the Zoom Tool (Magnifying Glass, top left) to zoom in on nodes.\n"
                                       + "Try some different Traceroute Methods to see what works best - firewalls on some nodes block packets of "
                                       + "certain types."), 0, 2)
-
         main_layout.addLayout(entry_layout, 2, 0)
-
-        self.sudo_pass_hashed = None # not actually hashed yet !!
-
-
 
         self.setLayout(main_layout)
 
-    def set_sudo_pass(self):
-        self.sudo_pass_hashed = self.pass_entry.text()
-        #self.pass_entry.setText("")
-        self.dlg.close()
+        # Setup variables for password storage
+        self.traceroute_method = TracerouteMethods(1)
+        self.sudo_pass = None
 
 
+    def remove_pass_entry_dlg(self):
+        self.sudo_pass = self.pass_entry.text()
+        self.pass_dlg.close()
 
-    def get_sudo_pass(self):
-        self.dlg = QDialog(self)
-        self.dlg.setWindowTitle("Enter Superuser Password")
-        self.dlg.setWindowModality(Qt.ApplicationModal)
+    def show_pass_entry_dlg(self):
+        self.pass_dlg = QDialog()
+        self.pass_dlg.setMinimumSize(250, 40)
+        self.pass_dlg.setWindowTitle("Enter Superuser Password")
+        self.pass_dlg.setWindowModality(Qt.ApplicationModal)
 
-        self.pass_entry = QLineEdit(self.dlg)
+        self.pass_entry = QLineEdit(pass_dlg)
         self.pass_entry.setEchoMode(QLineEdit.Password)
-        self.pass_entry.editingFinished.connect(self.set_sudo_pass)
-        self.dlg.exec_()
+        self.pass_entry.editingFinished.connect(self.remove_pass_entry_dlg)
+
+        self.pass_dlg.exec_()
 
     def traceroute_options_change(self, i):
-
         self.traceroute_method = TracerouteMethods(i)
 
-    def generate_map_axes(self):
-        ax = plt.axes(projection=ccrs.PlateCarree())
-        ax.coastlines()
-        ax.stock_img()
-        ax.add_feature(cfeature.BORDERS.with_scale('50m'))
-        ax.add_feature(cfeature.STATES.with_scale('50m'))
-
-        return ax
-
-    def plot(self):
-
-        if self.traceroute_method.name == "TCP" or self.traceroute_method.name == "DCCP":
-            self.get_sudo_pass()
-
-        self.flow_list.clear()
+    def reset_map(self):
         self.figure.clear()
-        self.ax.cla()
-        self.ax = self.generate_map_axes()
+
+        new_ax = plt.axes(projection=ccrs.PlateCarree())
+        new_ax.coastlines()
+        new_ax.stock_img()
+        new_ax.add_feature(cfeature.BORDERS.with_scale('50m'))
+        new_ax.add_feature(cfeature.STATES.with_scale('50m'))
+        self.ax = new_ax
+
         self.canvas.draw()
 
-        print(self.sudo_pass_hashed)
-        node_list = get_traceroute_node_list(self.addr_entry.text(), self.traceroute_method, self.sudo_pass_hashed)
-        self.sudo_pass_hashed = None
+    def perform_traceroute(self):
 
-        self.flow_list.addItem("START")
+        if self.traceroute_method.name == "TCP" or self.traceroute_method.name == "DCCP":
+            self.show_pass_entry_dlg()
+
+        # clear data from last run
+        self.node_list_widget.clear()
+        self.reset_map()
+
+
+        node_list = get_traceroute_node_list(self.addr_entry.text(), self.traceroute_method, self.sudo_pass)
+        self.sudo_pass = None
+
+        self.node_list_widget.addItem("START")
 
         visited_coords = []
         marker_color = 'red'
@@ -234,65 +229,18 @@ class Window(QWidget):
                 last_valid = i
 
             # add node into flow
-            self.flow_list.addItem(FlowNodeInfoBox(node, i))
+            self.node_list_widget.addItem(FlowNodeInfoEntry(node, i))
 
             i = i + 1
-        self.flow_list.addItem("END")
+        self.node_list_widget.addItem("END")
 
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
+    #app.setStyleSheet(qdarkstyle.load_stylesheet()) # if don't end up using, remove qdarkstyle
 
     main = Window()
     main.show()
 
     sys.exit(app.exec_())
 
-"""import sys
-import random
-from PySide6 import QtCore, QtWidgets, QtGui
-import cartopy.crs as ccrs
-import matplotlib.pyplot as plt
-
-
-class MyWidget(QtWidgets.QWidget):
-    def __init__(self):
-        super().__init__()
-
-        self.hello = ["a", "b", "c", "d"]
-
-        self.button = QtWidgets.QPushButton("Click me!")
-        self.text = QtWidgets.QLabel("hello wold")
-
-        self.layout = QtWidgets.QVBoxLayout(self)
-        self.layout.addWidget(self.text, alignment=QtCore.Qt.AlignCenter)
-        self.layout.addWidget(self.button)
-
-        self.button.clicked.connect(self.magic)
-
-        ax = plt.axes(projection=ccrs.PlateCarree())
-        ax.coastlines()
-        ax.stock_img()
-
-        plt.plot(-27, 4, color='red', marker = 'o')
-
-        
-        # Save the plot by calling plt.savefig() BEFORE plt.show()
-        #plt.savefig('coastlines.pdf')
-        #plt.savefig('coastlines.png')#
-
-        plt.show()
-
-    @QtCore.Slot()
-    def magic(self):
-        self.text.setText(random.choice(self.hello))
-
-
-if __name__ == "__main__":
-    app = QtWidgets.QApplication([])
-
-    widget = MyWidget()
-    widget.resize(800, 600)
-    widget.show()
-
-    sys.exit(app.exec()) """

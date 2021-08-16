@@ -13,6 +13,8 @@ pyshp = "*"
 cartopy = "*"
 scipy = "*"
 pyqt5 = "*"
+qdarkstyle = "*"
+pytest = "*"
 
 [dev-packages]
 

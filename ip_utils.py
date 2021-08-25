@@ -44,6 +44,7 @@ def format_hostname(hostname):  # UNIMPLEMENTED
 
 
 def curl(url):
+    """Returns String result of a pycurl call to url"""
     buffer = BytesIO()
 
     c = pycurl.Curl()
@@ -84,25 +85,23 @@ def generate_ipinfo_node(ip_addr, rtt):
                     rtt)
 
 
-def get_traceroute_node_list(hostname, method, sudo_pass=None):
+def get_traceroute_node_list(hostname, method):
     """Runs traceroute for a hostname, putting every node (or a specified
     'firewall' value if unreachable) into a list"""
 
     try:
         hostname = format_hostname(hostname)
     except socket.gaierror as se:
-        print("{}: Check Internet Connection".format(se))
+        print("{}: Hostname Invalid or Internet Connection not available (check connection)".format(se))
         sys.exit()
 
     node_list = []
 
     print("\n\nrunning traceroute for {} using method {}".format(hostname, method.name))
-    if method.name == "TCP" or method.name == "DCCP":  # requires sudo
-        if sudo_pass is None:
-            print("error")  # REPLACE WITH THROW
-        else:
-            result = os.popen("echo {} | sudo -S traceroute -M {} -n -q1 {}".format(sudo_pass, method.name, hostname))
-    else:
+    if method.name == "TCP" or method.name == "DCCP":  # these methods require sudo
+        # pass not required as user sets up traceroute in visudo
+        result = os.popen("sudo traceroute -M {} -n -q1 {}".format(method.name, hostname))
+    else:  # could just do everything with call above, but want users who haven't setup traceroute in visudo to use non-sudo methods
         result = os.popen("traceroute -M {} -n -q1 {}".format(method.name, hostname))
     result_lines = result.readlines()
     for line in result_lines[1:]:
@@ -110,11 +109,10 @@ def get_traceroute_node_list(hostname, method, sudo_pass=None):
         # e.g: ("traceroute to www.google.com (172.217.169.68), 30 hops max, 60 byte packets")
 
         line = line.split("  ", maxsplit=1)
-        i = line[0]
-        content = line[1]
-        if (content == "*\n"):
-            node_list.append(HostNode(True))
-        # print("device didn't respond, or timed out.")
+        content = line[1]  # for reference, line[0] would be a line index, we don't need it
+
+        if content == "*\n":
+            node_list.append(HostNode(private=True))  # node was unreachable, so repreesent as 'private' node
         else:
             content = content.split("  ", maxsplit=1)
             ip = content[0]
@@ -126,10 +124,3 @@ def get_traceroute_node_list(hostname, method, sudo_pass=None):
         # print("{}, {} ({} : rtt={})".format(node.city, node.region, node.ip, rtt))
 
     return node_list
-
-if __name__ == "__main__":
-    print(format_hostname("www.google.com"))
-    print(format_hostname("https://www.google.com"))
-    print(format_hostname("www.google.com/page1/page2"))
-    print(format_hostname("https://www.google.com/page1/page2"))
-    print(format_hostname("108.177.15.106"))

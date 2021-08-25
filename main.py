@@ -8,9 +8,6 @@ from matplotlib.backends.backend_qt5 import NavigationToolbar2QT
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
-import matplotlib.pyplot as plt
-
-import random
 
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
@@ -20,6 +17,7 @@ from node_utils import val_known
 from ip_utils import get_traceroute_node_list
 
 import qdarkstyle
+
 
 class TracerouteMethods(Enum):
     DEFAULT = 0
@@ -60,6 +58,7 @@ class FlowNodeInfoEntry(QListWidgetItem):
         {}""".format(text)
 
         self.setText(text)
+
 
 class Window(QWidget):
     class CustomNavigationToolbar(NavigationToolbar2QT):
@@ -131,26 +130,8 @@ class Window(QWidget):
 
         self.setLayout(main_layout)
 
-        # Setup variables for password storage
         self.traceroute_method = TracerouteMethods(1)
-        self.sudo_pass = None
 
-
-    def remove_pass_entry_dlg(self):
-        self.sudo_pass = self.pass_entry.text()
-        self.pass_dlg.close()
-
-    def show_pass_entry_dlg(self):
-        self.pass_dlg = QDialog()
-        self.pass_dlg.setMinimumSize(250, 40)
-        self.pass_dlg.setWindowTitle("Enter Superuser Password")
-        self.pass_dlg.setWindowModality(Qt.ApplicationModal)
-
-        self.pass_entry = QLineEdit(pass_dlg)
-        self.pass_entry.setEchoMode(QLineEdit.Password)
-        self.pass_entry.editingFinished.connect(self.remove_pass_entry_dlg)
-
-        self.pass_dlg.exec_()
 
     def traceroute_options_change(self, i):
         self.traceroute_method = TracerouteMethods(i)
@@ -169,22 +150,17 @@ class Window(QWidget):
 
     def perform_traceroute(self):
 
-        if self.traceroute_method.name == "TCP" or self.traceroute_method.name == "DCCP":
-            self.show_pass_entry_dlg()
-
         # clear data from last run
         self.node_list_widget.clear()
         self.reset_map()
 
-
-        node_list = get_traceroute_node_list(self.addr_entry.text(), self.traceroute_method, self.sudo_pass)
-        self.sudo_pass = None
+        node_list = get_traceroute_node_list(self.addr_entry.text(), self.traceroute_method)
 
         self.node_list_widget.addItem("START")
 
         visited_coords = []
         marker_color = 'red'
-        i = city_dup = last_valid = 0
+        i = last_valid = 0
         for node in node_list:
             print(repr(node))
 
@@ -237,10 +213,9 @@ class Window(QWidget):
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    #app.setStyleSheet(qdarkstyle.load_stylesheet()) # if don't end up using, remove qdarkstyle
+    # app.setStyleSheet(qdarkstyle.load_stylesheet()) # if don't end up using, remove qdarkstyle
 
     main = Window()
     main.show()
 
     sys.exit(app.exec_())
-

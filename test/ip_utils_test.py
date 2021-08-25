@@ -16,6 +16,9 @@ def test_format_hostname_on_valid_input(): # not valid hostnames, but valid inpu
         here we have a google server hostname and IP """
     assert format_hostname(google_details[2][0]) == google_details[0]
 
+    # add more here ! like actual google/x/y/z sites
+
+
 #def test_format_hostname_on_invalid_input():
 
 

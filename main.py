@@ -1,9 +1,10 @@
 import sys
+import os
 from enum import Enum, auto
 
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QDialog, QApplication, QPushButton, QVBoxLayout, QHBoxLayout, QListWidget, QLineEdit, \
-    QLabel, QGridLayout, QWidget, QAbstractItemView, QListWidgetItem, QCheckBox, QComboBox
+    QLabel, QGridLayout, QWidget, QAbstractItemView, QListWidgetItem, QCheckBox, QComboBox, QMessageBox
 from matplotlib.backends.backend_qt5 import NavigationToolbar2QT
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -13,10 +14,9 @@ import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import matplotlib.pyplot as plt
 
+import ip_utils
 from node_utils import val_known
-from ip_utils import get_traceroute_node_list
-
-import qdarkstyle
+from ip_utils import get_traceroute_node_list, functions_correctly
 
 
 class TracerouteMethods(Enum):
@@ -27,7 +27,7 @@ class TracerouteMethods(Enum):
     DCCP = 4
 
 
-class FlowNodeInfoEntry(QListWidgetItem):
+class NodeListItem(QListWidgetItem):
     """ Textual representation of a hop node, to be displayed in a QListWidget"""
 
     def __init__(self, node, pos):
@@ -58,6 +58,21 @@ class FlowNodeInfoEntry(QListWidgetItem):
         {}""".format(text)
 
         self.setText(text)
+
+
+def show_message_box(title, message, extra=""):
+    msg = QMessageBox()
+
+    #msg.setIcon(QMessageBox.Information)
+    msg.setWindowTitle(title)
+    msg.setText(message)
+    msg.setInformativeText(extra)
+    #msg.setDetailedText("The details are as follows:")
+
+    msg.show()
+
+    retval = msg.exec_()
+    #sys.exit(app.exec_())
 
 
 class Window(QWidget):
@@ -93,7 +108,7 @@ class Window(QWidget):
         map_layout.addWidget(self.canvas)
         main_layout.addLayout(map_layout, 0, 0)
 
-        # LAYOUT: Node List Widget (Texual Representation)
+        # LAYOUT: Node List Widget (Textual Representation)
         self.node_list_widget = QListWidget()
         self.node_list_widget.setMaximumHeight(int(round(self.height() * 0.4)))
         self.node_list_widget.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
@@ -111,7 +126,8 @@ class Window(QWidget):
         self.button.clicked.connect(self.perform_traceroute)
 
         self.traceroute_options = QComboBox()
-        self.traceroute_options.addItems(["Default/'Traditional' (Not Reccomended)",
+
+        self.traceroute_options.addItems(["Default/'Traditional'",
                                           "ICMP (Reccomended)",
                                           "UDP",
                                           "TCP (Reccomended, requires superuser privileges)",
@@ -131,7 +147,6 @@ class Window(QWidget):
         self.setLayout(main_layout)
 
         self.traceroute_method = TracerouteMethods(1)
-
 
     def traceroute_options_change(self, i):
         self.traceroute_method = TracerouteMethods(i)
@@ -205,7 +220,7 @@ class Window(QWidget):
                 last_valid = i
 
             # add node into flow
-            self.node_list_widget.addItem(FlowNodeInfoEntry(node, i))
+            self.node_list_widget.addItem(NodeListItem(node, i))
 
             i = i + 1
         self.node_list_widget.addItem("END")
@@ -213,9 +228,27 @@ class Window(QWidget):
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    # app.setStyleSheet(qdarkstyle.load_stylesheet()) # if don't end up using, remove qdarkstyle
 
-    main = Window()
-    main.show()
+
+    # is traceroute installed?
+    result = os.popen("traceroute -n -q1 localhost")
+    if not ip_utils.functions_correctly(result):
+        show_message_box("Traceroute doesn't seem to be available on this system.",
+                         "We tried using the traceroute command-line utility on your system, but it didn't work.\n"
+                         "Traceroute is needed for this application.\n",
+                         "If you're on a Debian/Ubuntu-based system, you can get traceroute using "
+                         "'sudo apt install traceroute'.\n\nFor other distributions, please seek help online.")
+    else:
+
+        # does traceroute have sudo privileges?
+        result = os.popen("sudo traceroute -M TCP -q1 localhost")
+        if not ip_utils.functions_correctly(result):
+            show_message_box("Traceroute does not have superuser privileges.",
+                             "Traceroute is working on your computer, but you aren't running it with administrator/superuser privileges.\n\n"
+                             "This is fine, but 2 of the 5 Traceroute methods (TCP/DCCP), which may provide better results, will not be available.\n\n"
+                             "To fix this, please check the README file provided with this application.")
+
+        main = Window()
+        main.show()
 
     sys.exit(app.exec_())

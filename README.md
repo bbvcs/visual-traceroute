@@ -55,6 +55,7 @@ google, amazon, etc - which are more likely to be able to handle increased traff
 
 TODO:
 * change to folium maps
+- improve output when Hostname Invalid / Internet Connection Not Available
 - change options based on whether or not sudo
 - check for if user attempts to use sudo method without setting up visudo
 - error handling; e.g crashes if enter non-valid hostname into search

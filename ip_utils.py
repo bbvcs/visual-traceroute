@@ -7,6 +7,7 @@ import sys  # for exit on exception
 import re # for checking hostnames
 
 from io import BytesIO  # for buffer for pycurl to write into
+
 from node_utils import HostNode, MissingInfoTypes  # class representing a host with info from ipinfo
 
 
@@ -113,8 +114,13 @@ def get_traceroute_node_list(hostname, method):
     try:
         hostname = format_hostname(hostname)
     except socket.gaierror as se:
+        """ # TODO add this later, problematic currently becuause of circular import.
+            # main.py should be seperated into main.py and class for GUI
+        show_message_box("Requested Hostname Invalid",
+                          "{}: Hostname Invalid or Internet Connection not available (check connection)".format(se)) """
         print("{}: Hostname Invalid or Internet Connection not available (check connection)".format(se))
-        sys.exit()
+        return
+        #sys.exit()
 
     node_list = []
 

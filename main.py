@@ -169,61 +169,64 @@ class Window(QWidget):
         self.node_list_widget.clear()
         self.reset_map()
 
+        # Actually perform traceroute and store resulting nodes in list
         node_list = get_traceroute_node_list(self.addr_entry.text(), self.traceroute_method)
+        if node_list is not None:
 
-        self.node_list_widget.addItem("START")
+            self.node_list_widget.addItem("START")
 
-        visited_coords = []
-        marker_color = 'red'
-        i = last_valid = 0
-        for node in node_list:
-            print(repr(node))
+            visited_coords = []
+            marker_color = 'red'
+            i = last_valid = 0
+            for node in node_list:
+                print(repr(node))
 
-            if node.coords_provided():
+                if node.coords_provided():
 
-                longitude = round(float(node.get_longitude()), 2)  # round to 2dp required by plt plot/text methods
-                latitude = round(float(node.get_latitude()), 2)
+                    longitude = round(float(node.get_longitude()), 2)  # round to 2dp required by plt plot/text methods
+                    latitude = round(float(node.get_latitude()), 2)
 
-                if i > 0:
-                    marker_color = 'blue'
-                if i == len(node_list) - 1:
-                    marker_color = 'green'  # electric green
+                    if i > 0:
+                        marker_color = 'blue'
+                    if i == len(node_list) - 1:
+                        marker_color = 'green'  # electric green
 
-                plt.plot(longitude, latitude, marker_color, marker='o', markersize=12, transform=ccrs.PlateCarree())
+                    plt.plot(longitude, latitude, marker_color, marker='o', markersize=12, transform=ccrs.PlateCarree())
 
-                if i > 1 and node_list[
-                    last_valid].coords_provided():  # error where last valid node is 0 and coords not disclosed, think fixed now
+                    if i > 1 and node_list[
+                        last_valid].coords_provided():  # error where last valid node is 0 and coords not disclosed, think fixed now
 
-                    last_valid_node = node_list[last_valid]
-                    # print("i={}, last_valid={}, last_valid_node={}".format(i, last_valid, last_valid_node.ip))
-                    prev_latitude = round(float(last_valid_node.get_latitude()), 2)
-                    prev_longitude = round(float(last_valid_node.get_longitude()), 2)
-                    plt.plot([longitude, prev_longitude], [latitude, prev_latitude], color='blue', linewidth=0.8,
-                             transform=ccrs.Geodetic())
+                        last_valid_node = node_list[last_valid]
+                        # print("i={}, last_valid={}, last_valid_node={}".format(i, last_valid, last_valid_node.ip))
+                        prev_latitude = round(float(last_valid_node.get_latitude()), 2)
+                        prev_longitude = round(float(last_valid_node.get_longitude()), 2)
+                        plt.plot([longitude, prev_longitude], [latitude, prev_latitude], color='blue', linewidth=0.8,
+                                 transform=ccrs.Geodetic())
 
-                coords_used = "{},{}".format(longitude, latitude)
-                tmp = ""
-                if coords_used in visited_coords:
+                    coords_used = "{},{}".format(longitude, latitude)
                     tmp = ""
-                    # build amount of spaces to prepend
-                    for x in range(visited_coords.count(coords_used)):
-                        tmp += "\n\n"
-                    tmp += "and "
+                    if coords_used in visited_coords:
+                        tmp = ""
+                        # build amount of spaces to prepend
+                        for x in range(visited_coords.count(coords_used)):
+                            tmp += "\n\n"
+                        tmp += "and "
 
-                visited_coords.append(coords_used)
+                    visited_coords.append(coords_used)
 
-                plt.text(longitude, latitude, tmp + str(i), color='white', horizontalalignment='center',
-                         verticalalignment='center', transform=ccrs.PlateCarree())
+                    plt.text(longitude, latitude, tmp + str(i), color='white', horizontalalignment='center',
+                             verticalalignment='center', transform=ccrs.PlateCarree())
 
-                self.canvas.draw()
+                    self.canvas.draw()
 
-                last_valid = i
+                    last_valid = i
 
-            # add node into flow
-            self.node_list_widget.addItem(NodeListItem(node, i))
+                # add node into flow
+                self.node_list_widget.addItem(NodeListItem(node, i))
 
-            i = i + 1
-        self.node_list_widget.addItem("END")
+                i = i + 1
+
+            self.node_list_widget.addItem("END")
 
 
 if __name__ == '__main__':
